@@ -2,10 +2,11 @@
 <head>
   <title>Websim Messenger</title>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       margin: 0;
-      padding: 20px;
+      padding: 10px;
       font-family: system-ui, -apple-system, sans-serif;
     }
 
@@ -15,7 +16,7 @@
       display: grid;
       grid-template-columns: 300px 1fr;
       gap: 20px;
-      height: calc(100vh - 40px);
+      height: calc(100vh - 20px);
     }
 
     .users-panel {
@@ -23,6 +24,9 @@
       border-radius: 8px;
       padding: 15px;
       overflow-y: auto;
+      background: white;
+      height: 100%;
+      box-sizing: border-box;
     }
 
     .chat-panel {
@@ -31,6 +35,9 @@
       padding: 15px;
       display: flex;
       flex-direction: column;
+      background: white;
+      height: 100%;
+      box-sizing: border-box;
     }
 
     .user-item {
@@ -40,6 +47,7 @@
       cursor: pointer;
       border-radius: 6px;
       margin-bottom: 4px;
+      transition: background 0.2s;
     }
 
     .user-item:hover {
@@ -62,6 +70,7 @@
       overflow-y: auto;
       margin-bottom: 15px;
       padding: 10px;
+      scroll-behavior: smooth;
     }
 
     .message {
@@ -99,31 +108,47 @@
     .message-input {
       display: flex;
       gap: 10px;
+      position: relative;
     }
 
     .message-input input {
       flex-grow: 1;
-      padding: 8px 12px;
+      padding: 12px;
       border: 1px solid #ddd;
       border-radius: 20px;
       outline: none;
+      font-size: 16px;
     }
 
     .message-input button {
-      padding: 8px 16px;
+      padding: 8px 20px;
       background: #0084ff;
       color: white;
       border: none;
       border-radius: 20px;
       cursor: pointer;
+      font-size: 16px;
+      transition: background 0.2s;
     }
 
     .message-input button:hover {
       background: #0073e6;
     }
 
+    .message-input button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
     .header {
       margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h2 {
+      margin: 0;
     }
 
     .disclaimer {
@@ -133,6 +158,7 @@
       border-radius: 4px;
       margin-bottom: 15px;
       color: #856404;
+      font-size: 14px;
     }
 
     .no-chat {
@@ -142,6 +168,8 @@
       height: 100%;
       color: #666;
       font-style: italic;
+      text-align: center;
+      padding: 20px;
     }
 
     .chat-header {
@@ -158,18 +186,100 @@
       border-radius: 50%;
       margin-right: 10px;
     }
+
+    .chat-header h3 {
+      margin: 0;
+    }
+
+    .back-button {
+      display: none;
+      padding: 8px 12px;
+      background: #f0f0f0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 0;
+      }
+
+      .container {
+        grid-template-columns: 1fr;
+        height: 100vh;
+        gap: 0;
+      }
+
+      .users-panel {
+        border: none;
+        border-radius: 0;
+        display: block;
+      }
+
+      .chat-panel {
+        border: none;
+        border-radius: 0;
+        display: none;
+        height: 100vh;
+      }
+
+      .chat-panel.active {
+        display: flex;
+      }
+
+      .back-button {
+        display: block;
+      }
+
+      .message-input {
+        padding: 10px;
+        background: white;
+        border-top: 1px solid #eee;
+      }
+
+      .messages-container {
+        padding-bottom: 20px;
+      }
+    }
+
+    .typing-indicator {
+      display: none;
+      padding: 8px;
+      color: #666;
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    .user-count {
+      background: #f0f0f0;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="users-panel">
+    <div class="users-panel" id="users-panel">
       <div class="header">
         <h2>Active Users</h2>
+        <div class="user-count" id="user-count">0 online</div>
       </div>
       <div class="disclaimer">
         Note: All messages are public and visible to everyone on Websim
       </div>
-      <div id="users-list"></div>
+      <div id="users-list">
+        <div class="empty-state">Waiting for other users to join...</div>
+      </div>
     </div>
     
     <div class="chat-panel" id="chat-panel">
@@ -177,11 +287,14 @@
         Select a user to start chatting
       </div>
       <div id="chat-view" style="display: none; height: 100%;">
-        <div id="chat-header" class="chat-header"></div>
+        <div id="chat-header" class="chat-header">
+          <button class="back-button" id="back-button">←</button>
+        </div>
         <div class="messages-container" id="messages-container"></div>
+        <div class="typing-indicator" id="typing-indicator"></div>
         <div class="message-input">
           <input type="text" id="message-input" placeholder="Type a message..." />
-          <button id="send-button">Send</button>
+          <button id="send-button" disabled>Send</button>
         </div>
       </div>
     </div>

@@ -8,6 +8,13 @@ const sendButton = document.getElementById('send-button');
 const chatView = document.getElementById('chat-view');
 const noChat = document.getElementById('no-chat');
 const chatHeader = document.getElementById('chat-header');
+const chatPanel = document.getElementById('chat-panel');
+const usersPanel = document.getElementById('users-panel');
+const backButton = document.getElementById('back-button');
+const userCount = document.getElementById('user-count');
+const typingIndicator = document.getElementById('typing-indicator');
+
+let typingTimeout = null;
 
 // Handle sending messages
 async function sendMessage() {
@@ -21,14 +28,54 @@ async function sendMessage() {
   });
 
   messageInput.value = '';
+  sendButton.disabled = true;
+  updateTypingStatus(false);
 }
 
 sendButton.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
     sendMessage();
   }
 });
+
+// Enable/disable send button based on input
+messageInput.addEventListener('input', (e) => {
+  sendButton.disabled = !e.target.value.trim();
+  updateTypingStatus(true);
+});
+
+// Handle typing indicator
+function updateTypingStatus(isTyping) {
+  if (!selectedUserId) return;
+
+  if (typingTimeout) {
+    clearTimeout(typingTimeout);
+  }
+
+  if (isTyping) {
+    room.send({
+      type: 'typing',
+      to_user_id: selectedUserId,
+      isTyping: true
+    });
+
+    typingTimeout = setTimeout(() => {
+      room.send({
+        type: 'typing',
+        to_user_id: selectedUserId,
+        isTyping: false
+      });
+    }, 2000);
+  } else {
+    room.send({
+      type: 'typing',
+      to_user_id: selectedUserId,
+      isTyping: false
+    });
+  }
+}
 
 // Handle displaying messages
 function renderMessage(message, peers) {
@@ -67,21 +114,51 @@ function selectUser(userId) {
   // Show chat view
   noChat.style.display = 'none';
   chatView.style.display = 'flex';
+  chatPanel.classList.add('active');
+  usersPanel.style.display = 'none';
   
   // Update chat header
   chatHeader.innerHTML = `
+    <button class="back-button" id="back-button">←</button>
     <img src="https://images.websim.ai/avatar/${peer.username}" alt="${peer.username}" />
     <h3>@${peer.username}</h3>
   `;
 
+  // Re-attach back button listener
+  document.getElementById('back-button').addEventListener('click', goBack);
+
   // Clear and load messages
   messagesContainer.innerHTML = '';
+  messageInput.value = '';
+  sendButton.disabled = true;
   loadMessages();
+  messageInput.focus();
 }
+
+// Handle going back to users list on mobile
+function goBack() {
+  chatPanel.classList.remove('active');
+  usersPanel.style.display = 'block';
+  selectedUserId = null;
+}
+
+backButton.addEventListener('click', goBack);
 
 // Render users list
 function renderUsers() {
   const usersList = document.getElementById('users-list');
+  const peers = Object.values(room.party.peers);
+  
+  // Update user count
+  const peerCount = peers.length - 1; // Exclude self
+  userCount.textContent = `${peerCount} online`;
+
+  // Show empty state if no other users
+  if (peerCount === 0) {
+    usersList.innerHTML = '<div class="empty-state">Waiting for other users to join...</div>';
+    return;
+  }
+
   usersList.innerHTML = '';
 
   // Sort peers by username
@@ -119,6 +196,21 @@ async function loadMessages() {
   messages.forEach(msg => renderMessage(msg, room.party.peers));
 }
 
+// Handle typing indicators
+room.onmessage = (event) => {
+  const data = event.data;
+  if (data.type === 'typing' && data.to_user_id === room.party.client.id) {
+    if (selectedUserId === data.clientId) {
+      if (data.isTyping) {
+        typingIndicator.style.display = 'block';
+        typingIndicator.textContent = `${data.username} is typing...`;
+      } else {
+        typingIndicator.style.display = 'none';
+      }
+    }
+  }
+};
+
 // Subscribe to peers updates
 room.party.subscribe(() => {
   renderUsers();
@@ -126,8 +218,10 @@ room.party.subscribe(() => {
   // If selected user disconnected, clear chat
   if (selectedUserId && !room.party.peers[selectedUserId]) {
     selectedUserId = null;
-    chatView.style.display = 'none';
+    chatPanel.classList.remove('active');
+    usersPanel.style.display = 'block';
     noChat.style.display = 'flex';
+    chatView.style.display = 'none';
   }
 });
 
@@ -142,6 +236,13 @@ room.collection('messages').subscribe((messages) => {
   });
   
   filteredMessages.forEach(msg => renderMessage(msg, room.party.peers));
+});
+
+// Handle visibility changes
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    updateTypingStatus(false);
+  }
 });
 
 // Initial render
