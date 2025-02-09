@@ -77,7 +77,7 @@ function updateTypingStatus(isTyping) {
   }
 }
 
-// Handle displaying messages
+// Enhanced message rendering with better timestamp formatting
 function renderMessage(message, peers) {
   const messageDiv = document.createElement('div');
   messageDiv.className = `message ${message.username === room.party.client.username ? 'sent' : 'received'}`;
@@ -89,45 +89,70 @@ function renderMessage(message, peers) {
   const infoDiv = document.createElement('div');
   infoDiv.className = 'message-info';
   
-  const timestamp = new Date(message.created_at).toLocaleTimeString();
+  // Format timestamp more naturally
+  const messageDate = new Date(message.created_at);
+  const now = new Date();
+  let timestamp;
+
+  if (messageDate.toDateString() === now.toDateString()) {
+    // Today - show time only
+    timestamp = messageDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } else if (messageDate.getFullYear() === now.getFullYear()) {
+    // This year - show month and day
+    timestamp = messageDate.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+                messageDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } else {
+    // Different year - show full date
+    timestamp = messageDate.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
   infoDiv.textContent = `${message.username} • ${timestamp}`;
 
   messageDiv.appendChild(contentDiv);
   messageDiv.appendChild(infoDiv);
   
   messagesContainer.appendChild(messageDiv);
-  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  
+  // Smooth scroll to bottom with a small delay to ensure content is rendered
+  setTimeout(() => {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }, 100);
 }
 
-// Handle user selection and chat display
+// Enhanced user selection with smooth transitions
 function selectUser(userId) {
   selectedUserId = userId;
   const peer = room.party.peers[userId];
   
   if (!peer) return;
 
-  // Update UI
+  // Update UI with smooth transitions
   const userItems = document.querySelectorAll('.user-item');
   userItems.forEach(item => item.classList.remove('active'));
   document.querySelector(`[data-user-id="${userId}"]`)?.classList.add('active');
 
-  // Show chat view
+  // Show chat view with transition
   noChat.style.display = 'none';
   chatView.style.display = 'flex';
-  chatPanel.classList.add('active');
+  
+  // Use setTimeout to ensure the transition happens after display change
+  setTimeout(() => {
+    chatPanel.classList.add('active');
+  }, 50);
+  
   usersPanel.style.display = 'none';
   
-  // Update chat header
+  // Update chat header with more detailed info
   chatHeader.innerHTML = `
     <button class="back-button" id="back-button">←</button>
     <img src="https://images.websim.ai/avatar/${peer.username}" alt="${peer.username}" />
-    <h3>@${peer.username}</h3>
+    <div>
+      <h3>@${peer.username}</h3>
+    </div>
   `;
 
-  // Re-attach back button listener
   document.getElementById('back-button').addEventListener('click', goBack);
 
-  // Clear and load messages
   messagesContainer.innerHTML = '';
   messageInput.value = '';
   sendButton.disabled = true;
@@ -144,29 +169,35 @@ function goBack() {
 
 backButton.addEventListener('click', goBack);
 
-// Render users list
+// Enhanced users list rendering
 function renderUsers() {
   const usersList = document.getElementById('users-list');
   const peers = Object.values(room.party.peers);
   
-  // Update user count
-  const peerCount = peers.length - 1; // Exclude self
-  userCount.textContent = `${peerCount} online`;
+  const peerCount = peers.length - 1;
+  userCount.textContent = `${peerCount} ${peerCount === 1 ? 'user' : 'users'} online`;
 
-  // Show empty state if no other users
   if (peerCount === 0) {
-    usersList.innerHTML = '<div class="empty-state">Waiting for other users to join...</div>';
+    usersList.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <p>Waiting for other users to join...</p>
+      </div>`;
     return;
   }
 
   usersList.innerHTML = '';
 
-  // Sort peers by username
   const sortedPeers = Object.entries(room.party.peers)
     .sort(([,a], [,b]) => a.username.localeCompare(b.username));
 
   for (const [userId, peer] of sortedPeers) {
-    if (userId === room.party.client.id) continue; // Skip self
+    if (userId === room.party.client.id) continue;
 
     const userItem = document.createElement('div');
     userItem.className = 'user-item';
