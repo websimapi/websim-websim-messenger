@@ -144,7 +144,11 @@ function selectUser(userId) {
   
   // Update chat header with more detailed info
   chatHeader.innerHTML = `
-    <button class="back-button" id="back-button">←</button>
+    <button class="back-button" id="back-button"> 
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
     <img src="https://images.websim.ai/avatar/${peer.username}" alt="${peer.username}" />
     <div>
       <h3>@${peer.username}</h3>
